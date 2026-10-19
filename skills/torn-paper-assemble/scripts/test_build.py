@@ -23,9 +23,9 @@ class PartitionTests(unittest.TestCase):
         self.mask.save(self.root / "mask.png")
         self.config = {"mode": "person", "pieces": [
             {"from": [0, 1.1]},
-            {"polygon": [[0, 0], [0.5, 0], [0.5, 0.5], [0, 0.5]], "from": [-1.1, 0]},
-            {"polygon": [[0.5, 0], [1, 0], [1, 0.5], [0.5, 0.5]], "from": [1.1, 0]},
-            {"polygon": [[0, 0.5], [0.5, 0.5], [1, 0.5], [1, 1], [0, 1]], "from": [0, 1.1]}]}
+            {"polygon": [[0, 0], [1, 0], [1, 0.08], [0.5, 0.08], [0, 0.08]], "from": [0, -1.1]},
+            {"polygon": [[0, 0.08], [0.5, 0.08], [0.5, 1], [0, 1]], "from": [-1.1, 0]},
+            {"polygon": [[0.5, 0.08], [1, 0.08], [1, 1], [0.5, 1]], "from": [1.1, 0]}]}
 
     def tearDown(self):
         self.temp.cleanup()
@@ -59,6 +59,22 @@ class PartitionTests(unittest.TestCase):
         with Image.open(self.root / "project/assets/piece-0.png") as person:
             self.assertIsNone(ImageChops.difference(person.getchannel("A"), self.mask).getbbox())
         self.assert_reconstructs()
+
+    def test_detached_background_after_person_cutout_rejected(self):
+        # A connected polygon is split by an arm reaching the frame edge.
+        ImageDraw.Draw(self.mask).rectangle((0, 150, 45, 160), fill=255)
+        self.mask.save(self.root / "mask.png")
+        result = self.build()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Background 2 has disconnected fragments", result.stderr)
+        self.assertFalse((self.root / "project/assets/piece-0.png").exists())
+
+    def test_single_pixel_background_island_rejected(self):
+        ImageDraw.Draw(self.mask).point((60, 150), fill=0)
+        self.mask.save(self.root / "mask.png")
+        result = self.build()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("disconnected fragments", result.stderr)
 
     def test_wrong_size_mask_rejected(self):
         Image.new("L", (10, 10)).save(self.root / "mask.png")

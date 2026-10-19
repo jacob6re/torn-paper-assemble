@@ -10,7 +10,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageFilter, ImageOps
+from PIL import Image, ImageChops, ImageFilter, ImageOps, ImageDraw
 
 
 def run(args):
@@ -57,6 +57,24 @@ def polygons(config, width, height):
             path.extend(segment[:-1])
         result.append(path)
     return result
+
+
+def validate_background_regions(masks):
+    """Require one 4-connected region per final background alpha mask."""
+    for i, mask in enumerate(masks, 1):
+        bbox = mask.getbbox()
+        if bbox is None:
+            raise ValueError(f"Background {i} is empty; exactly three complete background regions are required")
+        remaining = mask.crop(bbox)
+        first = remaining.tobytes().find(b"\xff")
+        ImageDraw.floodfill(remaining, (first % remaining.width, first // remaining.width), 0)
+        if remaining.getbbox():
+            raise ValueError(
+                f"Background {i} has disconnected fragments after subtracting the person "
+                f"({remaining.histogram()[255]} pixels outside its first connected region). "
+                "Move the shared boundary or merge fragments into an adjacent background; "
+                "inspect the person mask for enclosed noise. Three layers alone are insufficient."
+            )
 
 
 def main():
@@ -163,7 +181,6 @@ def main():
         if occupied < width * height * 0.001 or occupied > width * height * 0.995:
             raise ValueError("Empty, tiny or full-frame person mask; inspect and repair the mask")
         person_mask.save(assets / "person-mask.png")
-    from PIL import ImageDraw
     labels = Image.new("L", source.size, 0)
     overlap = Image.new("L", source.size, 0)
     background_pieces = pieces[1:] if person_mode else pieces
@@ -179,6 +196,7 @@ def main():
     if person_mode:
         remaining = ImageChops.invert(person_mask)
         masks = [person_mask] + [ImageChops.multiply(mask, remaining) for mask in masks]
+        validate_background_regions(masks[1:])
     for i, mask in enumerate(masks):
         if not mask.getbbox():
             raise ValueError("Empty piece")
