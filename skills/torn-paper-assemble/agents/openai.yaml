@@ -1,0 +1,4 @@
+interface:
+  display_name: "torn-paper-assemble"
+  short_description: "人物抠成一片、背景拆成三片；无人画面拆四片，白边撕纸错峰入场后接回视频"
+  default_prompt: "使用 $torn-paper-assemble 制作四片撕纸开场：有人物先抠出完整人物一片、背景分三片，错峰入场拼齐后恢复原视频。"
