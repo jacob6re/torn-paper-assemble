@@ -81,6 +81,19 @@ class PartitionTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assert_reconstructs()
 
+    def test_shared_edge_endpoint_rounding(self):
+        self.frame = self.frame.resize((720, 960))
+        self.frame.save(self.root / "frame.png")
+        self.mask = self.mask.resize(self.frame.size, Image.Resampling.NEAREST)
+        self.mask.save(self.root / "mask.png")
+        self.config["pieces"][1:] = [
+            {"polygon": [[0,0],[1,0],[1,0.32],[0.5,0.32],[0,0.32]], "from": [0,-1.1]},
+            {"polygon": [[0,0.32],[0.5,0.32],[0.63,1],[0,1]], "from": [-1.1,0]},
+            {"polygon": [[0.5,0.32],[1,0.32],[1,1],[0.63,1]], "from": [1.1,0]}]
+        result = self.build()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assert_reconstructs()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -46,7 +46,11 @@ def polygons(config, width, height):
                 edge = (p[0] == q[0] and p[0] in (0, 1)) or (p[1] == q[1] and p[1] in (0, 1))
                 cache[key] = []
                 for i in range(n + 1):
-                    offset = 0 if edge or i in (0, n) else rng.uniform(-1, 1) * max(1.2, width / 450)
+                    if i in (0, n):
+                        endpoint = p if i == 0 else q
+                        cache[key].append((endpoint[0] * width, endpoint[1] * height))
+                        continue
+                    offset = 0 if edge else rng.uniform(-1, 1) * max(1.2, width / 450)
                     cache[key].append((x + dx * i / n - dy / length * offset,
                                        y + dy * i / n + dx / length * offset))
             segment = cache[key] if a == key[0] else list(reversed(cache[key]))
